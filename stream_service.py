@@ -37,6 +37,7 @@ last_access_hls = {}
 last_access_udp = {}
 cleanup_started = False
 encoder_probe_cache = {}
+vaapi_rate_control_cache = {}
 hls_ready_logged = set()
 
 def ensure_cleanup_thread():
@@ -107,6 +108,11 @@ def normalize_hls_resolution_value(value):
 def normalize_hls_preset_value(value):
     text = (value or 'normal').strip().lower()
     return text if text in ('fast', 'normal', 'quality') else 'normal'
+
+
+def normalize_vaapi_rate_control(value):
+    text = (value or 'auto').strip().lower()
+    return text if text in ('auto', 'cbr', 'cqp') else 'auto'
 
 
 def get_hls_request_options(req=None):
@@ -299,15 +305,21 @@ def _start_hls_locked(channel_id, options=None):
                 vf = 'format=nv12,hwupload'
                 if should_scale and target_width and target_height:
                     vf += f',scale_vaapi={target_width}:{target_height}'
-                # J4125의 VAAPI 드라이버는 CBR/VBR이 아닌 CQP만 지원합니다.
-                # 비트레이트 옵션을 함께 주면 인코더 초기화가 실패하므로 품질(QP)로 제어합니다.
+                rate_control = get_vaapi_rate_control(
+                    ffmpeg_bin,
+                    vaapi_device or '/dev/dri/renderD128',
+                    ModelSetting.get('hls_vaapi_rate_control'),
+                )
                 cmd.extend([
                     '-vf', vf,
                     '-c:v', encoder,
-                    '-rc_mode', 'CQP',
-                    '-qp', '23',
-                    '-g', '60',
                 ])
+                if rate_control == 'cqp':
+                    # 일부 Intel 드라이버(J4125 등)는 CQP만 지원합니다.
+                    cmd.extend(['-rc_mode', 'CQP', '-qp', '23'])
+                else:
+                    cmd.extend(['-b:v', '1500k', '-maxrate', '1500k', '-bufsize', '3000k'])
+                cmd.extend(['-g', '60'])
             else:
                 if should_scale and target_width and target_height:
                     cmd.extend(['-vf', f'scale={target_width}:{target_height}'])
@@ -567,10 +579,10 @@ def list_vaapi_devices():
     return devices
 
 
-def build_encoder_probe_command(ffmpeg_path, encoder, vaapi_device=None):
+def build_encoder_probe_command(ffmpeg_path, encoder, vaapi_device=None, vaapi_rate_control=None):
     base = [ffmpeg_path, '-hide_banner', '-loglevel', 'error']
     if encoder == 'h264_vaapi':
-        return base + [
+        cmd = base + [
             '-vaapi_device', vaapi_device,
             '-f', 'lavfi',
             '-i', 'testsrc2=size=1280x720:rate=30',
@@ -578,8 +590,12 @@ def build_encoder_probe_command(ffmpeg_path, encoder, vaapi_device=None):
             '-frames:v', '30',
             '-an',
             '-c:v', encoder,
-            '-f', 'null', '-',
         ]
+        if vaapi_rate_control == 'cbr':
+            cmd.extend(['-b:v', '1500k', '-maxrate', '1500k', '-bufsize', '3000k'])
+        elif vaapi_rate_control == 'cqp':
+            cmd.extend(['-rc_mode', 'CQP', '-qp', '23'])
+        return cmd + ['-f', 'null', '-']
     cmd = base + [
         '-f', 'lavfi',
         '-i', 'testsrc2=size=1280x720:rate=30',
@@ -616,6 +632,36 @@ def encoder_is_usable(ffmpeg_path, encoder, force=False, with_device=False):
     device = ''
     encoder_probe_cache[cache_key] = (ok, device)
     return (ok, device) if with_device else ok
+
+
+def vaapi_rate_control_is_usable(ffmpeg_path, vaapi_device, rate_control):
+    cmd = build_encoder_probe_command(
+        ffmpeg_path,
+        'h264_vaapi',
+        vaapi_device=vaapi_device,
+        vaapi_rate_control=rate_control,
+    )
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=20, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exception:
+        logger.warning('[LIVE:hls] VAAPI %s probe failed: %s', rate_control, exception)
+        return False
+    return proc.returncode == 0
+
+
+def get_vaapi_rate_control(ffmpeg_path, vaapi_device, configured_value):
+    configured = normalize_vaapi_rate_control(configured_value)
+    if configured != 'auto':
+        return configured
+    cache_key = (ffmpeg_path, vaapi_device)
+    cached = vaapi_rate_control_cache.get(cache_key)
+    if cached:
+        return cached
+    # CBR을 먼저 사용하되, 드라이버가 지원하지 않으면 CQP로 자동 전환합니다.
+    selected = 'cbr' if vaapi_rate_control_is_usable(ffmpeg_path, vaapi_device, 'cbr') else 'cqp'
+    vaapi_rate_control_cache[cache_key] = selected
+    logger.info('[LIVE:hls] VAAPI rate control selected=%s device=%s', selected, vaapi_device)
+    return selected
 
 
 def probe_channel_type(url, timeout=3):

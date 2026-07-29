@@ -88,6 +88,13 @@
         value=arg['hls_preset'],
         desc=['트랜스코딩이 실제로 필요한 경우에 사용할 인코딩 프리셋입니다.']
       ) }}
+      {{ macros.setting_radio_with_value(
+        'hls_vaapi_rate_control',
+        'VAAPI 비트레이트 제어',
+        [['auto', '자동'], ['cbr', 'CBR'], ['cqp', 'CQP']],
+        value=arg.get('hls_vaapi_rate_control', 'auto'),
+        desc=['VAAPI를 사용할 때만 적용됩니다. 자동은 CBR 시험 인코딩이 실패하면 CQP를 선택합니다.', 'J4125처럼 CBR/VBR을 지원하지 않는 드라이버는 자동 또는 CQP를 사용하세요.']
+      ) }}
       {{ macros.setting_input_text(
         'user_agent',
         'HTTP User-Agent',
