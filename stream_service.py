@@ -299,12 +299,13 @@ def _start_hls_locked(channel_id, options=None):
                 vf = 'format=nv12,hwupload'
                 if should_scale and target_width and target_height:
                     vf += f',scale_vaapi={target_width}:{target_height}'
+                # J4125의 VAAPI 드라이버는 CBR/VBR이 아닌 CQP만 지원합니다.
+                # 비트레이트 옵션을 함께 주면 인코더 초기화가 실패하므로 품질(QP)로 제어합니다.
                 cmd.extend([
                     '-vf', vf,
                     '-c:v', encoder,
-                    '-b:v', '1500k',
-                    '-maxrate', '1500k',
-                    '-bufsize', '3000k',
+                    '-rc_mode', 'CQP',
+                    '-qp', '23',
                     '-g', '60',
                 ])
             else:

@@ -52,7 +52,7 @@ I-Proxy2는 I-Proxy와 동일한 채널 관리·EPG·플레이어 화면을 제�
 - HLS segment 시간: 로컬 HLS 세그먼트 길이입니다.
 - HLS 목록 길이: m3u8에 유지할 세그먼트 개수입니다.
 - 웹 Play 버튼: H.264 영상은 원본을 그대로 전달하고 오디오만 AAC로 변환해 NAS CPU를 낮춥니다. MPEG-2/HEVC처럼 브라우저 비호환 영상만 H.264/AAC 전체 변환합니다. 이 경로만 FFmpeg를 사용하며, M3U의 MPEG-TS 패스스루에는 영향을 주지 않습니다.
-- HLS h264 트랜스코딩: 일반 HLS 요청에서 HEVC/H.265 원본을 H.264로 변환할지 선택합니다.
+- HLS h264 트랜스코딩: 일반 HLS 요청에서 HEVC/H.265 원본을 H.264로 변환할지 선택합니다. Intel VAAPI는 이 NAS의 드라이버 호환성을 위해 CQP 품질 모드로 동작합니다.
 - 해상도: 원본 유지 또는 낮은 해상도로 축소할 수 있습니다.
 - HTTP User-Agent: HTTP/HLS 소스 요청에 사용할 User-Agent입니다.
 
