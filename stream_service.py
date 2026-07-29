@@ -96,7 +96,7 @@ def get_hls_default_options():
 
 def normalize_hls_codec_mode(value):
     text = (value or 'original').strip().lower()
-    return text if text in ('original', 'h264') else 'original'
+    return text if text in ('original', 'h264', 'browser') else 'original'
 
 
 def normalize_hls_resolution_value(value):
@@ -243,7 +243,12 @@ def _start_hls_locked(channel_id, options=None):
     probe = ffmpeg_probe_input(input_url, timeout=8)
     video_codec = normalize_video_codec_name(probe.get('video_codec'))
     source_height = int(probe.get('height') or 0)
-    if codec_mode == 'h264':
+    # browser 모드는 원본 코덱·오디오 구성과 상관없이 데스크톱 브라우저가
+    # 재생할 수 있는 H.264/AAC HLS를 만듭니다. 일반 HLS/API 요청은 기존
+    # 설정을 유지하므로 MPEG-TS 패스스루에는 영향을 주지 않습니다.
+    if codec_mode == 'browser':
+        should_transcode_h264 = True
+    elif codec_mode == 'h264':
         should_transcode_h264 = video_codec in ('hevc', 'h265')
     should_scale = bool(target_height and source_height and target_height < source_height)
     should_transcode = should_transcode_h264 or should_scale
@@ -295,11 +300,14 @@ def _start_hls_locked(channel_id, options=None):
                     cmd.extend(['-pix_fmt', 'nv12'])
                 elif encoder == 'h264_qsv' and preset:
                     cmd.extend(['-preset', preset])
+                if encoder == 'libx264':
+                    cmd.extend(['-pix_fmt', 'yuv420p'])
                 cmd.extend([
                     '-b:v', '1500k',
                     '-maxrate', '1500k',
                     '-bufsize', '3000k',
                     '-g', '60',
+                    '-force_key_frames', 'expr:gte(t,n_forced*2)',
                 ])
             cmd.extend([
                 '-c:a', 'aac',
