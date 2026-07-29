@@ -272,6 +272,7 @@ def parse_manual_channels(raw):
             'epg_source': normalize_epg_source(value.get('epg_source')),
             'epg_enabled': parse_bool(value.get('epg_enabled')) if value.get('epg_enabled') is not None else True,
             'hidden': parse_bool(value.get('hidden')),
+            'web_force_transcode': parse_bool(value.get('web_force_transcode')),
             'rtp': detected_type == 'rtp',
             'source': 'manual',
         })

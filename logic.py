@@ -389,7 +389,8 @@ def make_channel_payload(channel, req):
     base = get_base_url(req)
     # 웹 Play는 채널마다 원본 코덱이 달라도 브라우저에서 재생하도록
     # H.264/AAC 호환 HLS를 사용합니다. 외부 M3U의 MPEG-TS 경로는 유지됩니다.
-    web_player_url = with_request_apikey(f'/{package_name}/api/channel/{channel["id"]}?type=repack&codec_mode=browser', req)
+    web_codec_mode = 'browser_reencode' if channel.get('web_force_transcode') else 'browser'
+    web_player_url = with_request_apikey(f'/{package_name}/api/channel/{channel["id"]}?type=repack&codec_mode={web_codec_mode}', req)
     hls_url = with_request_apikey(f'{base}/api/channel/{channel["id"]}?type=repack', req)
     mpegts_url = with_request_apikey(f'{base}/api/channel/{channel["id"]}?type=mpegts', req)
     player_url = with_request_apikey(f'{base}/player/{channel["id"]}', req)
@@ -406,6 +407,7 @@ def make_channel_payload(channel, req):
         'epg_source': channel.get('epg_source', 'AUTO'),
         'epg_enabled': channel.get('epg_enabled', True),
         'hidden': channel['hidden'],
+        'web_force_transcode': channel.get('web_force_transcode', False),
         'rtp': channel['rtp'],
         'source': channel['source'],
         'mpegts_url': mpegts_url,

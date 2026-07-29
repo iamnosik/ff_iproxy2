@@ -97,7 +97,7 @@ def get_hls_default_options():
 
 def normalize_hls_codec_mode(value):
     text = (value or 'original').strip().lower()
-    return text if text in ('original', 'h264', 'browser') else 'original'
+    return text if text in ('original', 'h264', 'browser', 'browser_reencode') else 'original'
 
 
 def normalize_hls_resolution_value(value):
@@ -270,8 +270,12 @@ def _start_hls_locked(channel_id, options=None):
     # browser 모드는 원본 코덱·오디오 구성과 상관없이 데스크톱 브라우저가
     # 재생할 수 있는 H.264/AAC HLS를 만듭니다. 일반 HLS/API 요청은 기존
     # 설정을 유지하므로 MPEG-TS 패스스루에는 영향을 주지 않습니다.
-    browser_audio_compat = codec_mode == 'browser'
-    if codec_mode == 'browser':
+    browser_audio_compat = codec_mode in ('browser', 'browser_reencode')
+    if codec_mode == 'browser_reencode':
+        # 일부 H.264 멀티캐스트는 키프레임 이전 패킷부터 시작해 복사 HLS가
+        # 회색 화면으로 깨질 수 있습니다. 이 모드는 해당 채널만 다시 인코딩합니다.
+        should_transcode_h264 = True
+    elif codec_mode == 'browser':
         # H.264 영상은 복사하고 오디오만 AAC로 바꾸면 CPU 사용량이 매우 낮습니다.
         # MPEG-2/HEVC 등 브라우저 비호환 영상일 때만 전체 H.264 변환을 수행합니다.
         should_transcode_h264 = video_codec != 'h264'
