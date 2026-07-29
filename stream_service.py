@@ -201,12 +201,30 @@ def _log_process_output(proc, prefix):
 
 
 def _log_hls_process_output(proc, hls_key, channel_id):
-    _log_process_output(proc, '')
+    error_tail = []
+    if proc.stderr is not None:
+        try:
+            for line in proc.stderr:
+                line = line.strip()
+                if not line:
+                    continue
+                error_tail.append(line)
+                if len(error_tail) > 40:
+                    error_tail.pop(0)
+        except Exception:
+            pass
     try:
         returncode = proc.wait(timeout=1)
     except Exception:
         returncode = proc.poll()
     logger.info('[LIVE:hls] end channel=%s session=%s returncode=%s', channel_id, hls_key, returncode)
+    if returncode not in (None, 0, -9):
+        logger.error(
+            '[LIVE:hls] ffmpeg_failed channel=%s session=%s stderr_tail=%s',
+            channel_id,
+            hls_key,
+            ' | '.join(error_tail) or 'FFmpeg 오류 출력 없음',
+        )
 
 
 def start_hls(channel_id, options=None):
