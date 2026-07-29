@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+{% block content %}
+
+{{ macros.m_button_group([['globalSettingSaveBtn', '설정 저장']])}}
+{{ macros.m_row_start('5') }}
+{{ macros.m_row_end() }}
+
+<nav>
+  {{ macros.m_tab_head_start() }}
+    {{ macros.m_tab_head('basic', '기본', true) }}
+    {{ macros.m_tab_head('hls', 'HLS 생성', false) }}
+    {{ macros.m_tab_head('api', 'API', false) }}
+  {{ macros.m_tab_head_end() }}
+</nav>
+
+<form id="setting" name="setting">
+  <div class="tab-content" id="nav-tabContent">
+    {{ macros.m_tab_content_start('basic', true) }}
+      {{ macros.setting_input_text_and_buttons(
+        'ffmpeg_path',
+        'ffmpeg 경로',
+        [['ffmpeg_version_btn', '버전 확인'], ['test_transcode_encoder_btn', '인코더 테스트']],
+        value=arg['ffmpeg_path'],
+        desc=['UDP 채널을 HLS로 변환할 때 사용할 ffmpeg 실행 파일 경로입니다.', '리눅스는 보통 ffmpeg 또는 /usr/bin/ffmpeg, 윈도우는 ffmpeg.exe 경로를 사용합니다.']
+      ) }}
+      {{ macros.setting_radio_with_value(
+        'operation_mode',
+        '운영 모드',
+        [['personal', '개인용'], ['shared', '공유용']],
+        value=arg['operation_mode'],
+        desc=['자세한 차이는 메뉴얼을 참조해주세요.']
+      ) }}
+      {{ macros.setting_radio_with_value(
+        'alive_yaml_mode',
+        'Alive yaml',
+        [['mpegts', 'MPEG-TS'], ['hls', 'HLS']],
+        value=arg['alive_yaml_mode'],
+        desc=['alive.yaml의 channel_source.fix_url에 어떤 형식의 채널 URL을 기록할지 선택합니다.']
+      ) }}
+      {{ macros.setting_checkbox(
+        'include_hidden_channels',
+        '숨김채널 포함',
+        value=arg['include_hidden_channels'],
+        desc=['숨김으로 표시된 채널을 전체 플레이리스트에 기본 포함할지 정합니다.', '끄면 기본 M3U 생성 시 숨김 채널이 빠지고, 필요하면 API에서 include=all 로 별도 요청할 수 있습니다.']
+      ) }}
+    {{ macros.m_tab_content_end() }}
+
+    {{ macros.m_tab_content_start('hls', false) }}
+      {{ macros.setting_input_int(
+        'idle_timeout',
+        '유휴 종료 시간(초)',
+        value=arg['idle_timeout'],
+        min='5',
+        desc=['시청 클라이언트가 모두 끊긴 뒤에도 reader 또는 HLS 변환을 잠시 유지하는 시간입니다.', '이 시간이 지나면 백그라운드 작업을 정리해서 자원을 회수합니다.']
+      ) }}
+      {{ macros.setting_input_int(
+        'hls_time',
+        'HLS segment 시간',
+        value=arg['hls_time'],
+        min='1',
+        desc=['UDP 채널을 HLS로 만들 때 각 ts 조각의 목표 길이(초)입니다.', '값이 작으면 재생 시작이 빠르고 지연이 줄 수 있지만 ts 파일이 더 자주 생성됩니다.', '값이 크면 파일 수는 줄지만 재생 시작과 seek 반응이 느려질 수 있습니다.']
+      ) }}
+      {{ macros.setting_input_int(
+        'hls_list_size',
+        'HLS 목록 길이',
+        value=arg['hls_list_size'],
+        min='2',
+        desc=['m3u8 플레이리스트 안에 최근 몇 개 segment를 유지할지 정하는 값입니다.', '값이 작으면 지연은 줄지만 플레이어가 따라오지 못할 때 끊길 수 있고, 값이 크면 안정성은 좋아지지만 최신성은 조금 떨어질 수 있습니다.']
+      ) }}
+      {{ macros.setting_radio_with_value(
+        'hls_codec_mode',
+        'HLS h264 트랜스코딩',
+        [['h264', '사용'], ['original', '사용 안 함']],
+        value=arg['hls_codec_mode'],
+        desc=['원본 영상이 h265/HEVC일 때 h264로 변환할지 선택합니다.']
+      ) }}
+      {{ macros.setting_radio_with_value(
+        'hls_target_resolution',
+        '해상도',
+        [['original', '원본'], ['1080p', '1080p'], ['720p', '720p'], ['480p', '480p']],
+        value=arg['hls_target_resolution'],
+        desc=['원본과 같거나 더 높은 해상도를 선택하면 원본을 그대로 전달합니다.', '더 낮은 해상도를 선택했을 때만 축소합니다.']
+      ) }}
+      {{ macros.setting_radio_with_value(
+        'hls_preset',
+        '프리셋',
+        [['fast', '빠름'], ['normal', '보통'], ['quality', '품질']],
+        value=arg['hls_preset'],
+        desc=['트랜스코딩이 실제로 필요한 경우에 사용할 인코딩 프리셋입니다.']
+      ) }}
+      {{ macros.setting_input_text(
+        'user_agent',
+        'HTTP User-Agent',
+        value=arg['user_agent'],
+        desc=['HTTP/HLS 원본 주소 요청 시 사용할 User-Agent 입니다.', '특정 서버가 기본 Python UA를 막는 경우 이 값을 조정하면 도움이 됩니다.']
+      ) }}
+    {{ macros.m_tab_content_end() }}
+
+    {{ macros.m_tab_content_start('api', false) }}
+      {{ macros.info_text_go_buttons(
+        'mpegts_playlist_url',
+        'MPEG-TS 플레이리스트',
+        [['globalCliboardBtn', '클립보드에 복사', [['text', arg['mpegts_playlist_url']]]], ['globalOpenBtn', '열기', [['url', arg['mpegts_playlist_url']]]]],
+        value=arg['mpegts_playlist_url'],
+        desc=['전체 채널을 HTTP MPEG-TS 스트림 주소로 생성합니다.', '플레이어가 단일 스트림 URL을 직접 재생할 때 사용합니다.']
+      ) }}
+      {{ macros.info_text_go_buttons(
+        'hls_playlist_url',
+        'HLS 플레이리스트',
+        [['globalCliboardBtn', '클립보드에 복사', [['text', arg['hls_playlist_url']]]], ['globalOpenBtn', '열기', [['url', arg['hls_playlist_url']]]]],
+        value=arg['hls_playlist_url'],
+        desc=['전체 채널을 HLS 주소로 생성합니다.', 'UDP 채널은 ffmpeg로 HLS를 만들고, HTTP m3u8 채널은 세그먼트 URL을 다시 써서 전달합니다.']
+      ) }}
+      {{ macros.info_text_go_buttons(
+        'tvh_playlist_url',
+        'TVH 플레이리스트',
+        [['globalCliboardBtn', '클립보드에 복사', [['text', arg['tvh_playlist_url']]]], ['globalOpenBtn', '열기', [['url', arg['tvh_playlist_url']]]]],
+        value=arg['tvh_playlist_url'],
+        desc=['Tvheadend용 ffmpeg pipe 형식의 플레이리스트입니다.', '각 채널은 ffmpeg pipe:// 명령으로 생성되며 MPEG-TS URL을 입력으로 사용합니다.']
+      ) }}
+      {{ macros.info_text_go_buttons(
+        'show_yaml_url',
+        'show.yaml',
+        [['globalCliboardBtn', 'HLS', [['text', arg['show_yaml_url']]]], ['globalCliboardBtn', 'MPEG-TS', [['text', arg['show_yaml_mpegts_url']]]], ['globalOpenBtn', '열기', [['url', arg['show_yaml_url']]]]],
+        value=arg['show_yaml_url'],
+        desc=['채널 메타와 재생 URL을 포함한 show.yaml 주소입니다.']
+      ) }}
+      {{ macros.info_text_go_buttons(
+        'epg_xml_url',
+        'EPG XML',
+        [['globalCliboardBtn', '클립보드에 복사', [['text', arg['epg_xml_url']]]], ['globalOpenBtn', '열기', [['url', arg['epg_xml_url']]]]],
+        value=arg['epg_xml_url'],
+        desc=['생성된 XMLTV 형식 EPG 파일 주소입니다.', 'EPG 메뉴에서 수동 생성하거나 스케줄링으로 자동 생성한 결과를 제공합니다.']
+      ) }}
+    {{ macros.m_tab_content_end() }}
+  </div>
+</form>
+
+<script type="text/javascript">
+$("body").on('click', '#ffmpeg_version_btn', function(e){
+  e.preventDefault();
+  $.ajax({
+    url: `/${PACKAGE_NAME}/ajax/ffmpeg_version`,
+    type: 'POST',
+    cache: false,
+    dataType: 'json',
+    success: function(ret) {
+      if (ret && ret.ret === 'success') {
+        showModal(ret.modal || '', ret.title || 'ffmpeg version', false);
+      } else {
+        $.notify((ret && ret.msg) ? ret.msg : 'ffmpeg 확인에 실패했습니다.', {type: 'warning'});
+      }
+    },
+    error: function(xhr) {
+      $.notify((xhr && xhr.responseText) ? xhr.responseText : 'ffmpeg 확인에 실패했습니다.', {type: 'warning'});
+    }
+  });
+});
+
+$("body").on('click', '#test_transcode_encoder_btn', function(e){
+  e.preventDefault();
+  $.ajax({
+    url: `/${PACKAGE_NAME}/ajax/test_transcode_encoder`,
+    type: 'POST',
+    cache: false,
+    dataType: 'json',
+    success: function(ret) {
+      if (ret && ret.ret === 'success') {
+        var selected = ret.data && ret.data.selected_encoder ? ret.data.selected_encoder : '';
+        var device = ret.data && ret.data.selected_device ? ret.data.selected_device : '';
+        var message = ret.msg || '테스트 결과가 저장되었습니다';
+        if (selected) {
+          message += '<br>선택된 인코더: ' + selected;
+        }
+        if (device) {
+          message += '<br>사용 장치: ' + device;
+        }
+        $.notify('<strong>완료</strong><br>' + message, {type: 'success'});
+        showModal(ret.modal || '', ret.title || 'Encoder test', false);
+      } else {
+        $.notify((ret && ret.msg) ? ret.msg : '인코더 테스트에 실패했습니다.', {type: 'warning'});
+      }
+    },
+    error: function(xhr) {
+      $.notify((xhr && xhr.responseText) ? xhr.responseText : '인코더 테스트에 실패했습니다.', {type: 'warning'});
+    }
+  });
+});
+
+$(document).ajaxSuccess(function(_event, xhr, settings) {
+  if (!settings || !settings.url) {
+    return;
+  }
+  if (settings.url.indexOf('/ajax/setting_save') === -1) {
+    return;
+  }
+  if (xhr.status < 200 || xhr.status >= 300) {
+    return;
+  }
+  if (xhr.responseJSON && xhr.responseJSON.ret && xhr.responseJSON.ret !== 'success') {
+    return;
+  }
+  globalSendCommand('sync_alive_yaml', null, null, null, function(data) {
+    if (data.ret === 'success') {
+      $.notify('<strong>완료</strong><br>' + (data.msg || 'alive.yaml 반영을 완료했습니다.'), {type: 'success'});
+    } else if (data.msg) {
+      $.notify('<strong>실패</strong><br>' + data.msg, {type: 'warning'});
+    }
+  });
+});
+function saveSettingPage() {
+  const payload = {
+    ffmpeg_path: ($('#ffmpeg_path').val() || '').trim(),
+    operation_mode: $('input[name="operation_mode"]:checked').val() || 'personal',
+    idle_timeout: ($('#idle_timeout').val() || '').trim(),
+    hls_time: ($('#hls_time').val() || '').trim(),
+    hls_list_size: ($('#hls_list_size').val() || '').trim(),
+    hls_codec_mode: $('input[name="hls_codec_mode"]:checked').val() || 'original',
+    hls_target_resolution: $('input[name="hls_target_resolution"]:checked').val() || 'original',
+    hls_preset: $('input[name="hls_preset"]:checked').val() || 'normal',
+    user_agent: ($('#user_agent').val() || '').trim(),
+    alive_yaml_mode: $('input[name="alive_yaml_mode"]:checked').val() || 'mpegts',
+    include_hidden_channels: $('#include_hidden_channels').prop('checked') ? 'True' : 'False'
+  };
+  $.ajax({
+    url: `/${PACKAGE_NAME}/ajax/save_settings`,
+    type: 'POST',
+    cache: false,
+    dataType: 'json',
+    data: payload,
+    success: function(ret) {
+      if (ret && ret.ret === 'success') {
+        $.notify('<strong>완료</strong><br>' + (ret.msg || '설정을 저장했습니다.'), {type: 'success'});
+      } else {
+        $.notify('<strong>실패</strong><br>' + ((ret && ret.msg) ? ret.msg : '설정 저장에 실패했습니다.'), {type: 'warning'});
+      }
+    },
+    error: function(xhr) {
+      $.notify('<strong>실패</strong><br>' + ((xhr && xhr.responseJSON && xhr.responseJSON.msg) ? xhr.responseJSON.msg : '설정 저장에 실패했습니다.'), {type: 'warning'});
+    }
+  });
+}
+
+document.addEventListener('click', function(e) {
+  const target = e.target.closest('#globalSettingSaveBtn');
+  if (!target) return;
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+  saveSettingPage();
+}, true);
+</script>
+
+{% endblock %}

@@ -1,0 +1,215 @@
+{
+  "ch0": {
+    "name": "YTN",
+    "type": "udp",
+    "url": "udp://239.192.47.7:49220",
+    "rtp": true
+  },
+  "ch2": {
+    "name": "CJ ONSTYLE+",
+    "type": "udp",
+    "url": "udp://239.192.64.7:49220",
+    "rtp": true
+  },
+  "ch4": {
+    "name": "롯데홈쇼핑",
+    "type": "udp",
+    "url": "udp://239.192.56.5:49220",
+    "rtp": true
+  },
+  "ch5": {
+    "name": "SBS",
+    "type": "udp",
+    "url": "udp://239.192.67.98:49220"
+  },
+  "ch6": {
+    "name": "CJ ONSTYLE",
+    "type": "udp",
+    "url": "udp://239.192.58.11:49220",
+    "rtp": true
+  },
+  "ch7": {
+    "name": "KBS2",
+    "type": "udp",
+    "url": "udp://239.192.67.99:49220"
+  },
+  "ch8": {
+    "name": "현대홈쇼핑",
+    "type": "udp",
+    "url": "udp://239.192.48.4:49220",
+    "rtp": true
+  },
+  "ch9": {
+    "name": "KBS1",
+    "type": "udp",
+    "url": "udp://239.192.67.100:49220"
+  },
+  "ch10": {
+    "name": "GS SHOP",
+    "type": "udp",
+    "url": "udp://239.192.49.4:49220",
+    "rtp": true
+  },
+  "ch11": {
+    "name": "MBC",
+    "type": "udp",
+    "url": "udp://239.192.67.101:49220"
+  },
+  "ch12": {
+    "name": "홈&쇼핑",
+    "type": "udp",
+    "url": "udp://239.192.81.137:49220",
+    "rtp": true
+  },
+  "ch14": {
+    "name": "NS홈쇼핑",
+    "type": "udp",
+    "url": "udp://239.192.52.10:49220",
+    "rtp": true
+  },
+  "ch17": {
+    "name": "SK stoa",
+    "type": "udp",
+    "url": "udp://239.192.64.12:49220",
+    "rtp": true
+  },
+  "ch19": {
+    "name": "신세계쇼핑",
+    "type": "udp",
+    "url": "udp://239.192.64.6:49220",
+    "rtp": true
+  },
+  "ch21": {
+    "name": "공영쇼핑",
+    "type": "udp",
+    "url": "udp://239.192.81.169:49220",
+    "rtp": true
+  },
+  "ch22": {
+    "name": "KT알파 쇼핑",
+    "type": "udp",
+    "url": "udp://239.192.66.17:49220",
+    "rtp": true
+  },
+  "ch29": {
+    "name": "쇼핑엔티",
+    "type": "udp",
+    "url": "udp://239.192.69.109:49220",
+    "rtp": true
+  },
+  "ch35": {
+    "name": "NS Shop+",
+    "type": "udp",
+    "url": "udp://239.192.81.143:49220",
+    "rtp": true
+  },
+  "ch37": {
+    "name": "W쇼핑",
+    "type": "udp",
+    "url": "udp://239.192.81.101:49220",
+    "rtp": true
+  },
+  "ch72": {
+    "name": "OCN Movies",
+    "type": "udp",
+    "url": "udp://239.192.67.227:49220"
+  },
+  "ch73": {
+    "name": "OCN",
+    "type": "udp",
+    "url": "udp://239.192.67.226:49220"
+  },
+  "ch74": {
+    "name": "OCN Movies2",
+    "type": "udp",
+    "url": "udp://239.192.67.228:49220"
+  },
+  "ch75": {
+    "name": "Screen",
+    "type": "udp",
+    "url": "udp://239.192.67.229:49220"
+  },
+  "ch95": {
+    "name": "EBS2",
+    "type": "udp",
+    "url": "udp://239.192.42.2:49220",
+    "rtp": true
+  },
+  "ch120": {
+    "name": "UXN",
+    "type": "udp",
+    "url": "udp://239.192.81.38:49220",
+    "rtp": true
+  },
+  "ch121": {
+    "name": "UHD Dream TV",
+    "type": "udp",
+    "url": "udp://239.192.81.37:49220",
+    "rtp": true
+  },
+  "ch122": {
+    "name": "Asia UHD",
+    "type": "udp",
+    "url": "udp://239.192.81.36:49220",
+    "rtp": true
+  },
+  "ch312": {
+    "name": "미드나잇",
+    "type": "http",
+    "adult": true,
+    "url": "http://1.214.67.100/vod/62801.m3u8?VOD_RequestID=v2M2-0101-1010-7272-5050-000020180717021633"
+  },
+  "ch314": {
+    "name": "허니TV",
+    "type": "http",
+    "adult": true,
+    "url": "http://1.214.67.100/vod/74301.m3u8?VOD_RequestID=v2M2-0101-1010-7272-5050-000020180717021633"
+  },
+  "ch316": {
+    "name": "플레이보이TV",
+    "type": "http",
+    "adult": true,
+    "url": "http://1.214.67.100/vod/62901.m3u8?VOD_RequestID=v2M2-0101-1010-7272-5050-000020180717021633"
+  },
+  "ch974": {
+    "name": "SPOTV Golf&Health",
+    "type": "udp",
+    "url": "udp://239.192.67.163:49220"
+  },
+  "ch976": {
+    "name": "JTBC GOLF",
+    "type": "udp",
+    "url": "udp://239.192.67.165:49220"
+  },
+  "ch977": {
+    "name": "SBS GOLF",
+    "type": "udp",
+    "url": "udp://239.192.67.164:49220"
+  },
+  "ch982": {
+    "name": "SPOTV2",
+    "type": "udp",
+    "url": "udp://239.192.67.162:49220"
+  },
+  "ch983": {
+    "name": "MBC Sports+",
+    "type": "udp",
+    "url": "udp://239.192.67.131:49220"
+  },
+  "ch984": {
+    "name": "SBS Sports",
+    "type": "udp",
+    "url": "udp://239.192.67.130:49220"
+  },
+  "ch986": {
+    "name": "SPOTV",
+    "type": "udp",
+    "url": "udp://239.192.67.133:49220"
+  },
+  "ch999": {
+    "name": "GS MY SHOP",
+    "type": "udp",
+    "url": "udp://239.192.66.4:49220",
+    "rtp": true
+  }
+}

@@ -7,7 +7,17 @@ setting = {
         'uri': __package__,
         'name': 'I-Proxy2',
         'list': [
-            {'uri': 'setting', 'name': '상태'},
+            {'uri': 'setting', 'name': '설정'},
+            {'uri': 'edit', 'name': '편집'},
+            {'uri': 'list', 'name': '채널 목록'},
+            {'uri': 'epg', 'name': 'EPG'},
+            {
+                'uri': 'manual',
+                'name': '메뉴얼',
+                'list': [
+                    {'uri': 'manual.md', 'name': '메뉴얼'},
+                ],
+            },
             {'uri': 'log', 'name': '로그'},
         ],
     },

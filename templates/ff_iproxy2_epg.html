@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+
+{{ macros.m_button_group([['globalSettingSaveBtn', '설정 저장'], ['generate_epg_btn', 'EPG 생성'], ['reload_epg_status_btn', '상태 새로고침']])}}
+{{ macros.m_row_start('5') }}
+{{ macros.m_row_end() }}
+
+{{ macros.info_text_go('epg_xml_url', 'EPG', value=arg.get('epg_xml_url', '')) }}
+{{ macros.info_text_and_buttons('epg_updated_time', '', [['generate_epg_btn_top', '다시 만들기']], value='만든 시간 : ' + (arg.get('epg_last_generated', '') or '없음'), desc=None) }}
+{{ macros.m_hr() }}
+
+<form id="setting" name="setting">
+  {{ macros.setting_checkbox(
+    'epg_auto_start',
+    '자동 생성 사용',
+    value=arg.get('epg_auto_start', 'False'),
+    desc=['현재 스케줄 등록 상태: ' + ('등록됨' if arg.get('epg_schedule_active') == 'True' else '해제됨')]
+  ) }}
+  {{ macros.setting_input_text(
+    'epg_schedule',
+    '생성 주기',
+    value=arg.get('epg_schedule', '360'),
+    desc=['Scheduler 표현식을 입력합니다.', '예: 360 또는 0 4 * * *']
+  ) }}
+  {{ macros.setting_input_int(
+    'epg_days',
+    '조회 일수',
+    value=arg.get('epg_days', '2'),
+    min='1',
+    max='7',
+    desc=['각 채널에서 몇 일치 편성표를 가져올지 정합니다.', '값이 커질수록 요청 수와 생성 시간이 늘어납니다.']
+  ) }}
+  {{ macros.setting_input_text(
+    'epg_user_agent',
+    'EPG User-Agent',
+    value=arg.get('epg_user_agent', ''),
+    desc=['EPG 수집 요청에 사용할 User-Agent 입니다.', '기본값으로도 충분한 경우가 많지만 필요시 더 강한 브라우저 UA로 조정할 수 있습니다.']
+  ) }}
+  {{ macros.setting_input_text(
+    'epg_referer',
+    'EPG Referer',
+    value=arg.get('epg_referer', ''),
+    desc=['필요한 소스에만 사용할 Referer 입니다.', '비워두면 소스별 기본 Referer를 사용합니다.']
+  ) }}
+</form>
+
+<script type="text/javascript">
+function refreshEpgStatus() {
+  $.ajax({
+    url: `/${PACKAGE_NAME}/ajax/epg_status`,
+    type: 'POST',
+    cache: false,
+    dataType: 'json',
+    success: function(ret) {
+      if (!ret || !ret.data) return;
+      $('#epg_last_generated').text(ret.data.last_generated || '없음');
+    }
+  });
+}
+
+function sendEpgCommand(command, arg1, arg2) {
+  var url = `/${PACKAGE_NAME}/ajax/epg_generate`;
+  var data = {};
+  if (command === 'sync_epg_schedule') {
+    url = `/${PACKAGE_NAME}/ajax/epg_schedule`;
+    data = {
+      enabled: arg1 || '',
+      schedule: arg2 || ''
+    };
+  }
+  return $.ajax({
+    url: url,
+    type: 'POST',
+    cache: false,
+    data: data,
+    dataType: 'json'
+  });
+}
+
+$("body").on('click', '#reload_epg_status_btn', function(e){
+  e.preventDefault();
+  refreshEpgStatus();
+});
+
+$("body").on('click', '#generate_epg_btn', function(e){
+  e.preventDefault();
+  $.notify('EPG 생성을 시작했습니다.', {type: 'info'});
+  sendEpgCommand('generate_epg').done(function(ret){
+    if (ret && ret.ret === 'success') {
+      $.notify('EPG 생성이 완료되었습니다.', {type: 'success'});
+    } else {
+      $.notify((ret && ret.msg) ? ret.msg : 'EPG 생성에 실패했습니다.', {type: 'warning'});
+    }
+    refreshEpgStatus();
+  }).fail(function(xhr){
+    $.notify((xhr && xhr.responseText) ? xhr.responseText : 'EPG 생성 요청에 실패했습니다.', {type: 'warning'});
+    refreshEpgStatus();
+  });
+});
+
+$("body").on('click', '#generate_epg_btn_top', function(e){
+  e.preventDefault();
+  $('#generate_epg_btn').trigger('click');
+});
+
+$("body").on('change', '#epg_auto_start, #epg_schedule', function(){
+  var enabled = $('#epg_auto_start').is(':checked') ? 'True' : 'False';
+  var schedule = $('#epg_schedule').val() || '';
+  sendEpgCommand('sync_epg_schedule', enabled, schedule);
+});
+</script>
+
+{% endblock %}

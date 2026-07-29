@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block head %}{{ super() }}{% endblock %}
+{% block content %}
+
+<div class="container col-sm-10 mt-3 mb-3">
+  <div class="mb-2">
+    <strong>{{ arg['channel']['name'] }}</strong>
+    {% if arg['channel']['current_program'] %}
+    <span class="text-muted ml-2">{{ arg['channel']['current_program'] }}</span>
+    {% endif %}
+  </div>
+  <video id="iproxy_popup_player" controls autoplay playsinline style="width:100%; background-color:black;" src="{{ arg['play_url'] }}"></video>
+</div>
+
+<script type="text/javascript">
+$(document).ready(function(){
+  const player = document.getElementById('iproxy_popup_player');
+  if (player) {
+    player.play().catch(() => {});
+  }
+});
+</script>
+
+{% endblock %}

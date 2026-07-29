@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .iproxy-manual {
+    max-width: 1110px;
+    margin: 0 auto;
+    padding: 10px 6px 48px;
+    line-height: 1.65;
+  }
+  .iproxy-manual h1,
+  .iproxy-manual h2,
+  .iproxy-manual h3 {
+    color: #2f9ae5;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 6px;
+    margin-top: 28px;
+  }
+  .iproxy-manual h1 {
+    font-size: 2rem;
+  }
+  .iproxy-manual h2 {
+    font-size: 1.55rem;
+  }
+  .iproxy-manual h3 {
+    font-size: 1.2rem;
+    color: #333;
+    border-bottom: 0;
+  }
+  .iproxy-manual code {
+    background: #f3f4f6;
+    border-radius: 4px;
+    padding: 2px 4px;
+  }
+  .iproxy-manual pre {
+    background: #111;
+    color: #fff;
+    border-radius: 6px;
+    padding: 14px 18px;
+    overflow: auto;
+  }
+</style>
+
+<div class="iproxy-manual">
+  {{ arg['manual_body']|safe }}
+</div>
+
+{% endblock %}

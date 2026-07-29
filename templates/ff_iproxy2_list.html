@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block head %}
+{{ super() }}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.3.0/video-js.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/video.js/8.3.0/video.min.js"></script>
+{% endblock %}
+{% block content %}
+
+<style type="text/css">
+  #result_table.table thead,
+  #result_table.table tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  #result_table td,
+  #result_table th {
+    vertical-align: middle;
+  }
+
+  #result_table .btn-group .btn {
+    min-width: auto;
+    padding: .1rem .22rem;
+    margin: 0;
+  }
+
+  #result_table .btn-group .btn i.fa {
+    width: 12px;
+  }
+
+  #result_table .btn-group {
+    margin-bottom: 0;
+  }
+</style>
+
+<div>
+  {{ macros.m_button_group([['list_channel_reload_btn', '새로고침']])}}
+  <p class="mt-2 mb-1 text-sm small text-muted">마지막 업데이트:<span id="list_info" class="ml-1">방금 전</span></p>
+  <div id="list_div" class="mb-3">
+    <table id="result_table" class="table table-sm table-striped table-hover">
+      <thead class="thead-dark">
+        <tr>
+          <th style="width:6%; text-align:center;" class="text-truncate"></th>
+          <th style="width:20%; text-align:left;" class="text-truncate">채널</th>
+          <th style="width:59%; text-align:left;" class="text-truncate">프로그램</th>
+          <th style="width:5%; text-align:center;" class="text-truncate">Play</th>
+          <th style="width:5%; text-align:center;" class="text-truncate">HLS</th>
+          <th style="width:5%; text-align:center;" class="text-truncate">Stream</th>
+        </tr>
+      </thead>
+      <tbody id="channel-list">
+        <template id="channel-template">
+          <tr>
+            <td style="width:6%; text-align:center;" class="text-truncate" id="channel-idx"></td>
+            <td style="width:20%; text-align:left;" class="text-truncate" id="channel-name"></td>
+            <td style="width:59%; text-align:left;" class="text-truncate" id="channel-program"></td>
+            <td style="width:5%; text-align:center;" class="text-truncate" id="channel-play-action"></td>
+            <td style="width:5%; text-align:center;" class="text-truncate" id="channel-hls-action"></td>
+            <td style="width:5%; text-align:center;" class="text-truncate" id="channel-stream-action"></td>
+          </tr>
+        </template>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<form name="playform">
+  <input type="hidden" id="play_title" name="play_title">
+  <input type="hidden" id="play_source_src"  name="play_source_src">
+  <input type="hidden" id="play_source_type"  name="play_source_type">
+</form>
+
+<script type="text/javascript">
+var channelTemplate = document.querySelector('#channel-template');
+var channelScroller = document.querySelector('#channel-list');
+$(document).ready(function(){
+  make_channel_list({{ arg['channels']|tojson }});
+});
+
+$("body").on('click', '#list_channel_reload_btn', function(e) {
+  e.preventDefault();
+  location.reload();
+});
+
+function makeActionButtons(mode, item) {
+  let buttons = '';
+  buttons += j_button(
+    'play_url_btn',
+    '<i class="fa fa-external-link px-1" aria-hidden="true"></i>',
+    {'name': item.name, 'url': mode === 'hls' ? item.hls_url : item.mpegts_url},
+    'secondary',
+    false,
+    true
+  );
+  return j_button_group(buttons);
+}
+
+function make_channel_list(data) {
+  reset_channel_list();
+  let count = 0;
+  for (let i in data) {
+    let item = data[i];
+    let channel_clone = channelTemplate.content.cloneNode(true);
+    channel_clone.querySelector('#channel-idx').innerHTML = parseInt(i) + 1;
+    channel_clone.querySelector('#channel-name').innerHTML = item.name;
+    channel_clone.querySelector('#channel-name').title = item.name;
+    channel_clone.querySelector('#channel-program').innerHTML = item.current_program || '';
+    channel_clone.querySelector('#channel-program').title = item.current_program || '';
+    channel_clone.querySelector('#channel-play-action').innerHTML = j_button_group(
+      j_button(
+        'play_btn',
+        '<i class="fa fa-play px-1" aria-hidden="true"></i>',
+        {'mode': 'repack', 'name': item.name, 'url': item.web_player_url},
+        'secondary',
+        false,
+        true
+      )
+    );
+    channel_clone.querySelector('#channel-hls-action').innerHTML = makeActionButtons('hls', item);
+    channel_clone.querySelector('#channel-stream-action').innerHTML = makeActionButtons('mpegts', item);
+    channelScroller.appendChild(channel_clone);
+    count++;
+  }
+  if (count === 0) reset_channel_list('데이터가 없습니다.');
+}
+
+function sendPlayerEvent(action, mode, name, url) {
+  $.ajax({
+    url: `/${PACKAGE_NAME}/ajax/player_event`,
+    type: 'POST',
+    cache: false,
+    data: {
+      action: action || 'click',
+      mode: mode || '',
+      name: name || '',
+      url: url || ''
+    },
+    dataType: 'json'
+  });
+}
+
+function reset_channel_list(msg='') {
+  channelScroller.querySelectorAll('tr').forEach(e => e.remove());
+  if (msg) {
+    channelScroller.insertAdjacentHTML('beforeend', `<tr><td colspan="6">${msg}</td></tr>`);
+  }
+}
+
+$("body").on('click', '#play_btn', function(e){
+  e.preventDefault();
+  let wantPlay = $(this);
+  let mode = wantPlay.data('mode');
+  let name = wantPlay.data('name');
+  let url = wantPlay.data('url');
+  sendPlayerEvent('play_click', mode, name, url);
+  var form = document.playform;
+  var popupWidth = 980;
+  var leftPos = screen.width - popupWidth;
+  window.open('', url, "location=no,directories=no,resizable=no,status=no,toolbar=no,menubar=no,width=" + popupWidth + ",height=560,top=100,left=" + leftPos);
+  form.method = "post";
+  form.target = url;
+  $('#play_title').val(name);
+  $('#play_source_src').val(url);
+  $('#play_source_type').val('application/x-mpegURL');
+  form.action = "/videojs";
+  form.submit();
+});
+
+$("body").on('click', '#play_url_btn', function(e){
+  e.preventDefault();
+  let name = $(this).data('name');
+  let url = $(this).data('url');
+  sendPlayerEvent('open_url', '', name, url);
+  let str = url + '<br><br>';
+  let tmp = j_button('globalCliboardBtn', '클립보드 복사', {'text':url}, 'success');
+  tmp += j_button('globalOpenBtn', '새창에서 열기', {'url':url}, 'success');
+  str += j_button_group(tmp);
+  showModal(str, `${name} 주소`, false);
+});
+</script>
+
+{% endblock %}
