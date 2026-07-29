@@ -246,8 +246,11 @@ def _start_hls_locked(channel_id, options=None):
     # browser 모드는 원본 코덱·오디오 구성과 상관없이 데스크톱 브라우저가
     # 재생할 수 있는 H.264/AAC HLS를 만듭니다. 일반 HLS/API 요청은 기존
     # 설정을 유지하므로 MPEG-TS 패스스루에는 영향을 주지 않습니다.
+    browser_audio_compat = codec_mode == 'browser'
     if codec_mode == 'browser':
-        should_transcode_h264 = True
+        # H.264 영상은 복사하고 오디오만 AAC로 바꾸면 CPU 사용량이 매우 낮습니다.
+        # MPEG-2/HEVC 등 브라우저 비호환 영상일 때만 전체 H.264 변환을 수행합니다.
+        should_transcode_h264 = video_codec != 'h264'
     elif codec_mode == 'h264':
         should_transcode_h264 = video_codec in ('hevc', 'h265')
     should_scale = bool(target_height and source_height and target_height < source_height)
@@ -310,6 +313,20 @@ def _start_hls_locked(channel_id, options=None):
                     '-force_key_frames', 'expr:gte(t,n_forced*2)',
                 ])
             cmd.extend([
+                '-c:a', 'aac',
+                '-b:a', '192k',
+                '-ar', '48000',
+            ])
+        elif browser_audio_compat:
+            # H.264 영상은 재인코딩하지 않고 유지해 NAS CPU를 아낍니다.
+            # IPTV에서 흔한 AC-3/MP2 계열 오디오만 브라우저 호환 AAC로 바꿉니다.
+            cmd.extend([
+                '-ignore_unknown',
+                '-map', '0:v:0?',
+                '-map', '0:a:0?',
+                '-sn',
+                '-dn',
+                '-c:v', 'copy',
                 '-c:a', 'aac',
                 '-b:a', '192k',
                 '-ar', '48000',
