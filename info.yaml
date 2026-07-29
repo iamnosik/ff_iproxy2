@@ -1,0 +1,7 @@
+title: "I-Proxy2"
+version: "0.1.0"
+package_name: "ff_iproxy2"
+developer: "Custom"
+description: "ff_iproxy의 HTTP MPEG-TS 채널을 FFmpeg 없이 즉시 전달하는 저지연 패스스루 프록시"
+home: ""
+more: ""
