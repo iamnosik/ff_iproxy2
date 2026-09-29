@@ -423,7 +423,7 @@ def build_playlist(req, playlist_type='mpegts', include_all=True):
         if channel.get('hidden') and not include_all:
             continue
         payload = make_channel_payload(channel, req)
-        url = payload['hls_url'] if playlist_type in ('raw', 'repack') else payload['mpegts_url']
+        url = payload['hls_url'] if playlist_type in ('raw', 'repack', 'hls') else payload['mpegts_url']
         lines.append(f'#EXTINF:-1 tvg-name="{channel["name"]}",{channel["name"]}')
         lines.append(url)
     return '\n'.join(lines) + '\n'
@@ -495,7 +495,7 @@ def build_show_yaml_payload(req, play_type=SHOW_YAML_DEFAULT_TYPE):
         channel_name = str(channel.get('name') or channel.get('id') or '').strip()
         title = str(current_programs.get(channel.get('id')) or 'LIVE').strip() or 'LIVE'
         extras.append({
-            'mode': 'm3u8' if show_type in ('raw', 'repack') else 'mpegts',
+            'mode': 'm3u8' if show_type in ('raw', 'repack', 'hls') else 'mpegts',
             'type': 'featurette',
             'param': payload['hls_url'] if show_type in ('raw', 'repack') else payload['mpegts_url'],
             'channel': channel_name,
@@ -650,7 +650,7 @@ class Logic(PluginModuleBase):
         'ffmpeg_path': 'ffmpeg',
         'operation_mode': 'personal',
         'idle_timeout': '30',
-        'hls_time': '2',
+        'hls_time': '1',
         'hls_list_size': '6',
         'hls_codec_mode': 'original',
         'hls_target_resolution': 'original',
@@ -925,7 +925,7 @@ class Logic(PluginModuleBase):
 def api_playlist():
     require_api_key(request)
     playlist_type = (request.args.get('type') or 'mpegts').strip().lower()
-    if playlist_type not in ('raw', 'repack', 'mpegts', 'tvh'):
+    if playlist_type not in ('raw', 'repack', 'hls', 'mpegts', 'tvh'):
         abort(400)
     include_param = request.args.get('include')
     if include_param is None:
@@ -1081,7 +1081,7 @@ def build_hls_channel_response(channel_id, channel):
     hls_key = start_hls(channel_id, request_options)
     if not hls_key:
         abort(400)
-    if not wait_for_hls_ready(hls_key):
+    if not wait_for_hls_ready(hls_key, min_segments=1):
         abort(404)
 
     playlist = get_hls_playlist_path(hls_key)
@@ -1106,7 +1106,7 @@ def api_channel(channel_id):
     if channel is None:
         abort(404)
     channel_type = (request.args.get('type') or 'mpegts').strip().lower()
-    if channel_type in ('raw', 'repack'):
+    if channel_type in ('raw', 'repack', 'hls'):
         return build_hls_channel_response(channel_id, channel)
     if channel_type == 'mpegts':
         return build_mpegts_channel_response(channel_id, channel)

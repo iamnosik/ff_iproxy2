@@ -30,7 +30,8 @@ ModelSetting = P.ModelSetting
 path_app_root = F.path_app_root
 
 STATE_LOCK = threading.Lock()
-HLS_START_LOCK = threading.Lock()
+HLS_START_LOCK_GUARD = threading.Lock()
+HLS_START_LOCKS = {}
 processes_hls = {}
 udp_clients = {}
 last_access_hls = {}
@@ -233,8 +234,18 @@ def _log_hls_process_output(proc, hls_key, channel_id):
         )
 
 
+def get_hls_start_lock(channel_id):
+    # 같은 채널의 중복 시작만 직렬화하고, 서로 다른 채널은 동시에 시작합니다.
+    with HLS_START_LOCK_GUARD:
+        lock = HLS_START_LOCKS.get(channel_id)
+        if lock is None:
+            lock = threading.Lock()
+            HLS_START_LOCKS[channel_id] = lock
+        return lock
+
+
 def start_hls(channel_id, options=None):
-    with HLS_START_LOCK:
+    with get_hls_start_lock(channel_id):
         return _start_hls_locked(channel_id, options)
 
 
@@ -264,9 +275,17 @@ def _start_hls_locked(channel_id, options=None):
     should_transcode_h264 = False
     target_height = get_hls_target_height(hls_options)
     target_width, _ = get_hls_target_dimensions(hls_options)
-    probe = ffmpeg_probe_input(input_url, timeout=8)
-    video_codec = normalize_video_codec_name(probe.get('video_codec'))
-    source_height = int(probe.get('height') or 0)
+    # 원본(copy) HLS는 별도 사전 probe가 필요하지 않습니다.
+    # 기존에는 실제 HLS ffmpeg 실행 전에 최대 8초 probe가 한 번 더 원본을 열어
+    # cold-start가 길어지고 upstream client slot도 추가로 소비했습니다.
+    needs_codec_probe = codec_mode in ('browser', 'h264')
+    needs_resolution_probe = bool(target_height)
+    if needs_codec_probe or needs_resolution_probe:
+        probe = ffmpeg_probe_input(input_url, timeout=8)
+        video_codec = normalize_video_codec_name(probe.get('video_codec'))
+        source_height = int(probe.get('height') or 0)
+    else:
+        probe = {}
     # browser 모드는 원본 코덱·오디오 구성과 상관없이 데스크톱 브라우저가
     # 재생할 수 있는 H.264/AAC HLS를 만듭니다. 일반 HLS/API 요청은 기존
     # 설정을 유지하므로 MPEG-TS 패스스루에는 영향을 주지 않습니다.
@@ -295,6 +314,14 @@ def _start_hls_locked(channel_id, options=None):
             user_agent = (ModelSetting.get('user_agent') or '').strip()
             if user_agent:
                 cmd.extend(['-user_agent', user_agent])
+        # SK IPTV 원본 copy HLS cold-start 최적화.
+        # KBS1/KBS2/MBC/SBS/YTN 실측에서 500k/500k + 1초 segment 조합이
+        # 약 1.6~2.2초로 가장 안정적이었습니다.
+        if codec_mode == 'original' and not target_height:
+            cmd.extend([
+                '-analyzeduration', '500000',
+                '-probesize', '500000',
+            ])
         cmd.extend(['-i', input_url])
         if should_transcode:
             encoder = encoder_name or 'libx264'
@@ -874,18 +901,28 @@ def stream_via_ffmpeg_copy(channel, chunk_size=8192):
 def wait_for_hls_ready(hls_key, min_segments=2, playlist_wait_count=60, segment_wait_count=60):
     playlist = get_hls_playlist_path(hls_key)
     for _ in range(playlist_wait_count):
-        if playlist.exists():
+        if playlist.exists() and playlist.stat().st_size > 0:
             break
-        time.sleep(0.5)
-    if not playlist.exists():
+        time.sleep(0.25)
+    if not playlist.exists() or playlist.stat().st_size <= 0:
         return False
 
+    def valid_segments():
+        result = []
+        for item in get_hls_session_dir(hls_key).glob('*.ts'):
+            try:
+                if item.stat().st_size >= 188:
+                    result.append(item)
+            except OSError:
+                pass
+        return result
+
     for _ in range(segment_wait_count):
-        ts_files = list(get_hls_session_dir(hls_key).glob('*.ts'))
+        ts_files = valid_segments()
         if len(ts_files) >= min_segments:
             break
-        time.sleep(0.5)
-    segment_count = len(list(get_hls_session_dir(hls_key).glob('*.ts')))
+        time.sleep(0.25)
+    segment_count = len(valid_segments())
     ready = segment_count >= min_segments
     if ready:
         with STATE_LOCK:
