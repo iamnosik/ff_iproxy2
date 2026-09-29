@@ -32,6 +32,8 @@ path_app_root = F.path_app_root
 STATE_LOCK = threading.Lock()
 HLS_START_LOCK_GUARD = threading.Lock()
 HLS_START_LOCKS = {}
+HLS_CAPACITY_LOCK = threading.Lock()
+HLS_MAX_ACTIVE_SESSIONS = max(1, int(os.environ.get('FF_IPROXY2_HLS_MAX_SESSIONS', '3')))
 processes_hls = {}
 udp_clients = {}
 last_access_hls = {}
@@ -244,9 +246,44 @@ def get_hls_start_lock(channel_id):
         return lock
 
 
+def ensure_hls_capacity():
+    # SK IPTV upstream currently allows three concurrent clients.
+    # Before opening a fourth HLS worker, evict the least recently used
+    # inactive/old session so rapid channel switching does not hit HTTP 503.
+    while True:
+        with STATE_LOCK:
+            dead = [
+                key for key, proc in processes_hls.items()
+                if proc is None or proc.poll() is not None
+            ]
+        for key in dead:
+            stop_hls(key, reason='dead_session')
+
+        with STATE_LOCK:
+            active = [
+                (last_access_hls.get(key, 0), key)
+                for key, proc in processes_hls.items()
+                if proc is not None and proc.poll() is None
+            ]
+        if len(active) < HLS_MAX_ACTIVE_SESSIONS:
+            return
+
+        _last_access, victim = min(active)
+        logger.info(
+            '[LIVE:hls] capacity_evict session=%s active=%s limit=%s',
+            victim,
+            len(active),
+            HLS_MAX_ACTIVE_SESSIONS,
+        )
+        stop_hls(victim, reason='capacity_evict')
+
+
 def start_hls(channel_id, options=None):
     with get_hls_start_lock(channel_id):
-        return _start_hls_locked(channel_id, options)
+        # Serialize only new-session allocation so two simultaneous channel
+        # starts cannot both observe a free third upstream slot.
+        with HLS_CAPACITY_LOCK:
+            return _start_hls_locked(channel_id, options)
 
 
 def _start_hls_locked(channel_id, options=None):
@@ -416,6 +453,7 @@ def _start_hls_locked(channel_id, options=None):
     if should_transcode:
         vaapi_device = (ModelSetting.get('hls_vaapi_device') or '').strip()
     stop_hls_by_channel(channel_id)
+    ensure_hls_capacity()
     session_dir.mkdir(parents=True, exist_ok=True)
     logger.info('[LIVE:hls] start channel=%s session=%s dir=%s source=%s', channel_id, hls_key, session_dir, input_url)
     proc = subprocess.Popen(
